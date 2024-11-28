@@ -1,21 +1,10 @@
 #include <SFML/Graphics.hpp>
-
+#include "Game.h"
 int main()
 {
-    auto window = sf::RenderWindow({800u, 800u}, "Tresure Hunt");
-    window.setFramerateLimit(144);
+	auto env = Game();
+	
+	env.run();
 
-    while (window.isOpen())
-    {
-        for (auto event = sf::Event(); window.pollEvent(event);)
-        {
-            if (event.type == sf::Event::Closed)
-            {
-                window.close();
-            }
-        }
-
-        window.clear();
-        window.display();
-    }
+	return 0;
 }

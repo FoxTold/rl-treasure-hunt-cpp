@@ -3,7 +3,7 @@
 #include "SFML/Graphics.hpp"
 
 namespace{
-    constexpr int GRID_SIZE = 6;
+    constexpr int GRID_SIZE = 5;
 
     struct Position{
         int x;
@@ -14,18 +14,18 @@ class Game{
     public:
         Game() : _window(sf::RenderWindow({ 800u, 800u }, "Tresure Hunt")) 
         {
-
+            _window.setFramerateLimit(30);
         };
-        ~Game();
+        ~Game() {};
 
         void run();
         void handleEvents();
-        void update();
+        //void update();
         void render();
     
     private:
         sf::RenderWindow _window;
-        sf::RectangleShape _grid[GRID_SIZE][GRID_SIZE];
+        sf::VertexArray grid();
         
-        void initGrid();
+        //void initGrid();
 };

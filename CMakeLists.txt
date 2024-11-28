@@ -9,7 +9,7 @@ add_executable(rl_env
     src/Game.cpp
     src/Game.h)
 target_link_libraries(rl_env PRIVATE sfml-graphics )
-target_compile_features(rl_env PRIVATE cxx_std_17)
+target_compile_features(rl_env PRIVATE cxx_std_20)
 message(${CMAKE_BINARY_DIR}/deps/SFML/lib/${CMAKE_BUILD_TYPE} )
 
 add_custom_command(

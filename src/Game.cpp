@@ -27,6 +27,7 @@ void Game::render()
     _window.clear();
 
     //Render thing here.
-
+    _map.render(_window);
+    //
     _window.display();
 }

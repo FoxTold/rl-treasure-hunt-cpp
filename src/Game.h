@@ -1,15 +1,7 @@
 #pragma once
 
 #include "SFML/Graphics.hpp"
-
-namespace{
-    constexpr int GRID_SIZE = 5;
-
-    struct Position{
-        int x;
-        int y;
-    };
-}
+#include "Map.h"
 class Game{
     public:
         Game() : _window(sf::RenderWindow({ 800u, 800u }, "Tresure Hunt")) 
@@ -25,7 +17,6 @@ class Game{
     
     private:
         sf::RenderWindow _window;
-        sf::VertexArray grid();
-        
+        Map _map;
         //void initGrid();
 };

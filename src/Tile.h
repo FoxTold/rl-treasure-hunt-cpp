@@ -1,6 +1,14 @@
 #pragma once
+
 #include "SFML/Graphics.hpp"
 #include "Vector2f.h"
+
+namespace
+{
+    const int GRID_SIZE = 10;
+    const int SCREEN_SIZE = 800;
+    const int TILE_SIZE = SCREEN_SIZE / GRID_SIZE;
+}
 
 class Tile{
 public:
@@ -53,10 +61,64 @@ public:
     unsigned char getIdx() {
         return _idx;
     }
+    
+    bool hasCoin() {
+        return _hasCoin;
+    }
+
+    bool hasPlayer() {
+        return _hasPlayer;
+    }
+
+    bool hasEnemy()
+    {
+        return _hasEnemy;
+    }
+    void setCoin(const bool hasCoin)
+    {
+        _hasCoin = hasCoin;
+    }
+    void setPlayer(const bool hasPlayer)
+    {
+        _hasPlayer = hasPlayer;
+    }
+    void setEnemy(const bool hasEnemy)
+    {
+        _hasEnemy = hasEnemy;
+    }
+
+    void drawCoin(sf::RenderWindow& window)
+    {
+        const auto coinSize = 10;
+        sf::CircleShape coin(coinSize);
+        coin.setFillColor(sf::Color::Yellow);
+        sf::Vector2f vec;
+        sf::Vector2f currVec = _shape.getPosition();
+        vec.x = currVec.x + (TILE_SIZE / 2) - coinSize;
+        vec.y = currVec.y + (TILE_SIZE / 2) - coinSize;
+        coin.setPosition(vec);
+        window.draw(coin);
+    }
+
+    void render(sf::RenderWindow& window)
+    {
+        window.draw(_shape);
+        if (1 == _hasCoin)
+        {
+            drawCoin(window);
+        }
+
+    }
 
 private:
     sf::RectangleShape _shape;
     Vector2f _position;
     Vector2f _size;
+
+    bool _hasCoin { false };
+    bool _hasPlayer{ false };
+    bool _hasEnemy{ false };
+
     unsigned char _idx = 0;
+    
 };

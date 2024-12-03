@@ -9,4 +9,6 @@ struct Vector2f{
     Vector2f(const Vector2f& pos) : x(pos.x), y(pos.y) {};
     
     ~Vector2f() = default;
+
+
 };

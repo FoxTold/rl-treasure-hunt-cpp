@@ -25,7 +25,9 @@ public:
 
 	void setTile(const std::shared_ptr<Tile>& tile)
 	{
+		_currentTile->setPlayer(false);
 		_currentTile = tile;
+		_currentTile->setPlayer(true);
 		const auto pos = _currentTile->getPosition();
 		sprite.setPosition(pos.x,pos.y);
 		sprite.move(playerOffset);

@@ -2,17 +2,23 @@
 
 #include "SFML/Graphics.hpp"
 #include "Vector2f.h"
-
+#include <format>
 namespace
 {
-    const int GRID_SIZE = 10;
+    const int GRID_SIZE = 5;
     const int SCREEN_SIZE = 800;
     const int TILE_SIZE = SCREEN_SIZE / GRID_SIZE;
 }
 
 class Tile{
 public:
-    Tile() = default;
+    Tile()
+    {
+        if (!_font.loadFromFile("Roboto.ttf"))
+        {
+            throw new std::exception("Couldnt load font");
+        }
+    };
     ~Tile() = default;
 
     void setPosition(const Vector2f& pos)
@@ -31,6 +37,10 @@ public:
     void setIdx(const unsigned char& idx)
     {
         _idx = idx;
+        _text.setFont(_font);
+        _text.setString(std::format("{}", _idx));
+        _text.setCharacterSize(12);
+        _text.setPosition(_shape.getPosition());
     }
 
     void setFillColor(const sf::Color& color)
@@ -89,7 +99,7 @@ public:
 
     void drawCoin(sf::RenderWindow& window)
     {
-        const auto coinSize = 10;
+        const auto coinSize = 20;
         sf::CircleShape coin(coinSize);
         coin.setFillColor(sf::Color::Yellow);
         sf::Vector2f vec;
@@ -107,7 +117,7 @@ public:
         {
             drawCoin(window);
         }
-
+        window.draw(_text);
     }
 
 private:
@@ -120,5 +130,7 @@ private:
     bool _hasEnemy{ false };
 
     unsigned char _idx = 0;
-    
+
+    sf::Font _font;
+    sf::Text _text;
 };

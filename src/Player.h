@@ -1,6 +1,7 @@
 #pragma once
 #include "SFML/Graphics.hpp"
 
+
 class Player {
 public: 
 	Player() {
@@ -10,8 +11,8 @@ public:
 			throw new std::exception("Couldn't load player sprite...");
 		}
 		sprite.setTexture(texture);
-		sprite.scale(0.6f, 0.6f);
-		sprite.setTextureRect(sf::IntRect(100, 0, -100, 100));
+		sprite.scale(1.2f, 1.2f);
+		sprite.setTextureRect(sf::IntRect(128, 0, -128, 100));
 		sprite.move(playerOffset);
 		_currentTile = std::make_shared<Tile>();
 
@@ -31,6 +32,12 @@ public:
 		const auto pos = _currentTile->getPosition();
 		sprite.setPosition(pos.x,pos.y);
 		sprite.move(playerOffset);
+		if (_currentTile->hasCoin())
+		{
+			_currentTile->setCoin(false);
+			// GIVE REWARD
+			reward = 10;
+		}
 	}
 
 	std::shared_ptr<Tile> getTile()
@@ -46,6 +53,12 @@ public:
 		window.draw(sprite);
 
 	}
+	int getReward()
+	{
+		auto rew = reward;
+		reward = 0;
+		return rew;
+	}
 private:
 	sf::Sprite sprite;
 	sf::Texture texture;
@@ -54,4 +67,5 @@ private:
 	std::shared_ptr<Tile> _currentTile;
 
 	sf::Vector2f playerOffset { 10.f,0.2f };
+	int reward = { 0 };
 };

@@ -2,21 +2,7 @@
 #include <iostream>
 #include <format>
 #include <random>
-
-namespace {
-    constexpr int N_COINS = 15;
-}
-
-void Game::run()
-{
-	while (_window.isOpen())
-	{
-        handleEvents();
-        
-        std::cout << "State: " << getState() << '\n';
-        render();
-	}
-}
+#include "Tile.h"
 
 void Game::handleEvents()
 {
@@ -24,30 +10,94 @@ void Game::handleEvents()
     {
         if (event.type == sf::Event::Closed)
         {
+            //_done = true;
             _window.close();
         }
 
-        if (event.type == sf::Event::KeyReleased) {
+        /*if (event.type == sf::Event::KeyReleased) {
             const auto idx = _player.getTileIdx();
             if (event.key.code == sf::Keyboard::Left) {
-                _player.setTile(_tiles[idx - 1]);
+                if (idx % GRID_SIZE != 0)
+                {
+                    _player.setTile(_tiles[idx - 1]);
+                }
             }
             else if (event.key.code == sf::Keyboard::Right) {
-                _player.setTile(_tiles[idx + 1]);
+                if ( idx % GRID_SIZE != GRID_SIZE - 1)
+                {
+                    _player.setTile(_tiles[idx + 1]);
+                }
             }
             else if (event.key.code == sf::Keyboard::Up) {
-                _player.setTile(_tiles[idx - GRID_SIZE]);
+                if (idx - GRID_SIZE >= 0)
+                {
+                    _player.setTile(_tiles[idx - GRID_SIZE]);
+                }
             }
             else if (event.key.code == sf::Keyboard::Down) {
-                _player.setTile(_tiles[idx + GRID_SIZE]);
+                if (idx + GRID_SIZE < GRID_SIZE * GRID_SIZE)
+                {
+                    _player.setTile(_tiles[idx + GRID_SIZE]);
+                }
             }
-        }
+            else if (event.key.code == sf::Keyboard::R)
+            {
+                reset();
+            }
+        }*/
     }
 }
 
 void Game::renderPlayer()
 {
 	_player.render(_window);
+}
+
+std::shared_ptr<EnvReturnValue> Game::step(Action action)
+{
+    const auto idx = _player.getTileIdx();
+    switch (action)
+    {
+    case LEFT:
+        if (idx % GRID_SIZE != 0)
+        {
+            _player.setTile(_tiles[idx - 1]);
+        }
+        break;
+    case RIGHT:
+        if (idx % GRID_SIZE != GRID_SIZE - 1)
+        {
+            _player.setTile(_tiles[idx + 1]);
+        }
+        break;
+    case UP:
+        if (idx - GRID_SIZE >= 0)
+        {
+            _player.setTile(_tiles[idx - GRID_SIZE]);
+        }
+    case DOWN:
+        if (idx + GRID_SIZE < GRID_SIZE * GRID_SIZE)
+        {
+            _player.setTile(_tiles[idx + GRID_SIZE]);
+        }
+
+    }
+    std::shared_ptr<EnvReturnValue> value = std::make_shared<EnvReturnValue>();
+
+    value->nextState = getState();
+    value->reward = calculateReward();
+
+    bool coinPresent = false;
+    for (auto& tile : _tiles)
+    {
+        if (tile->hasCoin())
+        {
+            coinPresent = true;
+            break;
+        }
+    }
+    value->isDone = !coinPresent;
+    return value;
 }
 
 void Game::render()
@@ -79,14 +129,38 @@ std::string Game::getState()
             state.push_back('P');
         }
         else {
-            state.push_back(' ');
+            state.push_back('X');
         }
     }
     return state;
 }
 
+std::string Game::reset()
+{
+    initTiles();
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> distrib(0, GRID_SIZE - 1);
+    _player.setTile(_tiles[distrib(gen)]);
+    return getState();
+}
+
+bool Game::isDone()
+{
+    return _done;
+}
+
+int Game::calculateReward()
+{
+    int reward = 0;
+    reward += _player.getReward();
+
+    return reward;
+}
+
 void Game::initTiles()
 {
+    _tiles.clear();
     _tiles.reserve(GRID_SIZE * GRID_SIZE);
 
     for (int i = 0; i < GRID_SIZE; ++i)
@@ -106,15 +180,9 @@ void Game::initTiles()
             _tiles.push_back(tile);
         }
     }
-
-    std::mt19937 gen(42);
-    std::uniform_int_distribution<> dist(1, 98);
-
-    for (int i = 0; i < N_COINS; ++i)
-    {
-        int idx = dist(gen);
-        _tiles[idx]->setCoin(true);
-    }
+    _tiles[16]->setCoin(true);
+    _tiles[13]->setCoin(true);
+    _tiles[1]->setCoin(true);
 }
 
 void Game::renderTiles()
@@ -124,3 +192,4 @@ void Game::renderTiles()
         tile->render(_window);
     }
 }
+

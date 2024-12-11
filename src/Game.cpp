@@ -3,6 +3,7 @@
 #include <format>
 #include <random>
 #include "Tile.h"
+#include "../deps/SFML/src/SFML/Window/Win32/CursorImpl.hpp"
 
 void Game::handleEvents()
 {
@@ -75,17 +76,17 @@ std::shared_ptr<EnvReturnValue> Game::step(Action action)
         {
             _player.setTile(_tiles[idx - GRID_SIZE]);
         }
+        break;
     case DOWN:
         if (idx + GRID_SIZE < GRID_SIZE * GRID_SIZE)
         {
             _player.setTile(_tiles[idx + GRID_SIZE]);
         }
+        break;
 
     }
     std::shared_ptr<EnvReturnValue> value = std::make_shared<EnvReturnValue>();
 
-    value->nextState = getState();
-    value->reward = calculateReward();
 
     bool coinPresent = false;
     for (auto& tile : _tiles)
@@ -96,7 +97,19 @@ std::shared_ptr<EnvReturnValue> Game::step(Action action)
             break;
         }
     }
-    value->isDone = !coinPresent;
+    auto collision = _player.getTile() != _enemy.getTile();
+    std::cout << collision;
+    value->isDone = !coinPresent || !collision;
+
+    auto curr_enemy_idx = _enemy.getTileIdx();
+    if (curr_enemy_idx + _enemy.x_dir > 19 || curr_enemy_idx + _enemy.x_dir < 15)
+    {
+        _enemy.x_dir *= -1;
+    }
+    _enemy.setTile(_tiles[curr_enemy_idx + _enemy.x_dir]);
+    value->nextState = getState();
+    value->reward = calculateReward();
+
     return value;
 }
 
@@ -108,6 +121,7 @@ void Game::render()
 
     renderTiles();
     renderPlayer();
+    _enemy.render(_window);
     //
     _window.display();
 }
@@ -141,7 +155,10 @@ std::string Game::reset()
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<int> distrib(0, GRID_SIZE - 1);
-    _player.setTile(_tiles[distrib(gen)]);
+    auto& player_tile = _tiles[distrib(gen)];
+	_player.setTile(player_tile);
+    auto& enemy_tile = _tiles[16];
+    _enemy.setTile(enemy_tile);
     return getState();
 }
 
@@ -154,7 +171,10 @@ int Game::calculateReward()
 {
     int reward = 0;
     reward += _player.getReward();
-
+    if ( _player.getTile() == _enemy.getTile())
+    {
+        reward = -100;
+    }
     return reward;
 }
 

@@ -8,8 +8,8 @@ add_executable(rl_env
     src/main.cpp
     src/Game.cpp
     src/Game.h
-    src/Player.cpp
     src/Player.h
+    src/Enemy.h
     src/Tile.h
     src/Vector2f.h)
 target_link_libraries(rl_env PRIVATE sfml-graphics )

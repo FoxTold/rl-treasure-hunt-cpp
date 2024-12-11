@@ -143,17 +143,24 @@ struct Q_LearningAgent
 	double epsilon = 0.25; // Exploration rate
 };
 
+
 int main()
 {
+	enum class main_state 
+	{
+		LEARN = 0,
+		PLAY
+	};
+
 	if (0)
 	{
 		auto agent = Q_LearningAgent();
 		agent.loadQTable("dupa.txt");
-		int actionMax = 100;
+		int actionMax = 20;
 		auto env = Game(0);
 		for (int episode = 0; episode < 10000; episode++)
 		{
-			agent.epsilon = agent.getEpsilon(episode, 10000, 1, 0.1, 0.0005);
+			agent.epsilon = agent.getEpsilon(episode, 10000, 1, 0.1, 0.001);
 			int i = 0;
 			auto state = env.reset();
 			while (false == env.isDone() && i < actionMax)

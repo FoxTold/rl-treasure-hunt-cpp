@@ -3,6 +3,7 @@
 #include "SFML/Graphics.hpp"
 #include "Tile.h"
 #include "Player.h"
+#include "Enemy.h"
 enum Action
 {
 	LEFT,
@@ -40,6 +41,7 @@ class Game{
         std::vector<std::shared_ptr<Tile>> _tiles;
         
         Player _player;
+        Enemy _enemy;
         bool _done { false };
         void initTiles();
         void renderTiles();

@@ -1,5 +1,6 @@
 import numpy as np
 import pygame
+import random
 
 class TreasureHuntEnv:
     def __init__(self, render_mode=None):
@@ -28,10 +29,9 @@ class TreasureHuntEnv:
 
     def reset(self):
         self.player_pos = (0, 0)
-        self.treasures = [(2, 2), (3, 3), (4, 4)]  # Fixed treasure positions
+        self.treasures = [(4, 5), (0, 5), (3, 3)]  # Fixed treasure positions
         self.meta_flag = (5, 5)  # Fixed meta flag position
-        self.enemy_pos = (0, 5)  # Fixed enemy position
-        self.enemy_direction = 1  # 1 for down, -1 for up
+        self.enemy_pos = (3, 0)  # Fixed enemy 1 position
         self.collected_treasures = 0
         self.steps = 0
         self.done = False
@@ -111,16 +111,16 @@ class TreasureHuntEnv:
         if self.player_pos in self.treasures:
             self.treasures.remove(self.player_pos)
             self.collected_treasures += 1
-            reward += 0.1  # Reward for collecting a treasure
+            reward += 0.2  # Reward for collecting a treasure
 
         if self.player_pos == self.meta_flag and self.collected_treasures == 3:  # Total treasures is 3
-            reward += 0.5  # Reward for reaching the meta flag
+            reward += 1.0  # Reward for reaching the meta flag
             self.done = True
 
-        self._move_enemy()
+        self._move_enemies()
 
         if self.player_pos == self.enemy_pos:
-            reward -= 0.2  # Penalty for being caught by the enemy
+            reward -= 0.4  # Penalty for being caught by an enemy
             self.done = True
 
         if self.steps >= 100:
@@ -128,17 +128,19 @@ class TreasureHuntEnv:
 
         return self._get_state(), reward, self.done, {}
 
-    def _move_enemy(self):
+    def _move_enemies(self):
+        # Move first enemy
         ex, ey = self.enemy_pos
-        if self.enemy_direction == 1 and ex < self.grid_size - 1:
-            ex += 1
-        elif self.enemy_direction == -1 and ex > 0:
-            ex -= 1
-        else:
-            self.enemy_direction *= -1
-            ex += self.enemy_direction
-
-        self.enemy_pos = (ex, ey)
+        possible_moves = []
+        if ex > 0:  # Can move up
+            possible_moves.append((ex - 1, ey))
+        if ex < self.grid_size - 1:  # Can move down
+            possible_moves.append((ex + 1, ey))
+        if ey > 0:  # Can move left
+            possible_moves.append((ex, ey - 1))
+        if ey < self.grid_size - 1:  # Can move right
+            possible_moves.append((ex, ey + 1))
+        self.enemy_pos = random.choice(possible_moves)
 
     def close(self):
         if self.pygame_initialized:

@@ -37,7 +37,7 @@ class DeepQLearningAgent:
         self.memory = deque(maxlen=memory_size)
 
         # Device setup for GPU/CPU
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cpu" if torch.cuda.is_available() else "cpu")
 
         # Q-network and optimizer
         self.q_network = AdvancedDQNetwork(state_dim, action_dim).to(self.device)
@@ -88,6 +88,13 @@ class DeepQLearningAgent:
         loss.backward()
         self.optimizer.step()
 
+    def update_exploration_rate(self, episode):
+        max_exploration_rate = 1.0
+        min_exploration_rate = 0.01
+        decay_rate = 0.001
+        self.exploration_rate = min_exploration_rate + (max_exploration_rate - min_exploration_rate) * np.exp(
+            -decay_rate * episode)
+
     def train(self, episodes=1000, target_update_frequency=10):
         self.rewards =[]
         for episode in range(episodes):
@@ -106,7 +113,7 @@ class DeepQLearningAgent:
             if episode % target_update_frequency == 0:
                 self.update_target_network()
 
-            self.exploration_rate = max(self.min_exploration_rate, self.exploration_rate * self.exploration_decay)
+            self.update_exploration_rate(episode)
             print(f"Episode {episode + 1}/{episodes}, Total Reward: {total_reward:.2f}, Exploration Rate: {self.exploration_rate:.4f}")
             self.rewards.append(total_reward)
 
@@ -137,7 +144,7 @@ if __name__ == "__main__":
 
     print("Training Deep Q-Learning Agent...")
     agent.train(episodes=5_000)
-    plt.plot(agent.rewards)
+    plt.plot(agent.rewards,"bo")
     plt.show()
     print("Playing with the trained agent...")
     agent.play(render_mode="pygame")

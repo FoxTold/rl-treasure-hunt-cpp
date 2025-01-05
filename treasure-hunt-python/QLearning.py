@@ -54,29 +54,34 @@ class QLearningAgent:
             reward + self.discount_factor * best_next_action - self.q_table[state_key][action]
         )
 
+    def update_exploration_rate(self, episode):
+        max_exploration_rate = 1.0
+        min_exploration_rate = 0.01
+        decay_rate = 0.001
+        self.exploration_rate = min_exploration_rate + (max_exploration_rate - min_exploration_rate) * np.exp(
+            -decay_rate * episode)
+
+
     def train(self, episodes=1000):
         """
         Train the Q-learning agent over a specified number of episodes.
         """
-        random.seed(69)  # Set random seed for reproducibility
-        np.random.seed(69)
-
         rewards = []
         for episode in range(episodes):
             state = self.env.reset()
             total_reward = 0
             done = False
-
-            while not done:
+            step_count = 0
+            while not done and step_count < 50:
                 action = self.choose_action(state)
                 next_state, reward, done, _ = self.env.step(action)
                 self.update_q_table(state, action, reward, next_state, done)
-
+                step_count += 1
                 state = next_state
                 total_reward += reward
 
             rewards.append(total_reward)
-            self.exploration_rate = max(self.min_exploration_rate, self.exploration_rate * self.exploration_decay)
+            self.update_exploration_rate(episode)
             print(f"Episode {episode + 1}/{episodes}, Total Reward: {total_reward:.2f}, Exploration Rate: {self.exploration_rate:.4f}")
 
         return rewards
@@ -105,7 +110,7 @@ if __name__ == "__main__":
     agent = QLearningAgent(env)
 
     print("Training Q-Learning Agent...")
-    rewards = agent.train(episodes=1_000 )
+    rewards = agent.train(episodes=2_000 )
 
     print("Playing with the trained agent...")
     agent.play(render_mode="pygame")  # Enable Pygame rendering for visualization

@@ -29,9 +29,10 @@ class TreasureHuntEnv:
 
     def reset(self):
         self.player_pos = (0, 0)
-        self.treasures = [(4, 5), (0, 5), (3, 3)]  # Fixed treasure positions
+        self.treasures = [(5, 2), (2, 3), (1, 2)]  # Fixed treasure positions
         self.meta_flag = (5, 5)  # Fixed meta flag position
-        self.enemy_pos = (3, 0)  # Fixed enemy 1 position
+        self.enemy_pos = (0, 5)  # Fixed enemy 1 position
+        self.enemy2_pos = (5, 0)  # Fixed enemy 2 position
         self.collected_treasures = 0
         self.steps = 0
         self.done = False
@@ -43,8 +44,11 @@ class TreasureHuntEnv:
         grid[px, py] = 1.0
         for tx, ty in self.treasures:
             grid[tx, ty] = 2.0
-        ex, ey = self.enemy_pos
-        grid[ex, ey] = 3.0
+        if self.collected_treasures < 3:  # Ensure all treasures are collected before removing enemies
+            ex, ey = self.enemy_pos
+            grid[ex, ey] = 3.0
+            ex2, ey2 = self.enemy2_pos
+            grid[ex2, ey2] = 3.0
         mx, my = self.meta_flag
         grid[mx, my] = 4.0
         return grid
@@ -82,8 +86,12 @@ class TreasureHuntEnv:
                 rect = pygame.Rect(my * self.cell_size + j * self.cell_size // 2, mx * self.cell_size + 50 + i * self.cell_size // 2, self.cell_size // 2, self.cell_size // 2)
                 pygame.draw.rect(self.screen, color, rect)
 
-        ex, ey = self.enemy_pos
-        self.screen.blit(self.enemy_image, (ey * self.cell_size, ex * self.cell_size + 50))
+        if self.collected_treasures < 3:  # Ensure all treasures are collected before removing enemies
+            ex, ey = self.enemy_pos
+            self.screen.blit(self.enemy_image, (ey * self.cell_size, ex * self.cell_size + 50))
+
+            ex2, ey2 = self.enemy2_pos
+            self.screen.blit(self.enemy_image, (ey2 * self.cell_size, ex2 * self.cell_size + 50))
 
         px, py = self.player_pos
         self.screen.blit(self.player_image, (py * self.cell_size, px * self.cell_size + 50))
@@ -111,16 +119,17 @@ class TreasureHuntEnv:
         if self.player_pos in self.treasures:
             self.treasures.remove(self.player_pos)
             self.collected_treasures += 1
-            reward += 0.2  # Reward for collecting a treasure
+            reward += 0.1  # Reward for collecting a treasure
 
         if self.player_pos == self.meta_flag and self.collected_treasures == 3:  # Total treasures is 3
-            reward += 1.0  # Reward for reaching the meta flag
+            reward += 0.5  # Reward for reaching the meta flag
             self.done = True
 
-        self._move_enemies()
+        if self.collected_treasures < 3:  # Ensure enemies move only if treasures remain
+            self._move_enemies()
 
-        if self.player_pos == self.enemy_pos:
-            reward -= 0.4  # Penalty for being caught by an enemy
+        if self.collected_treasures < 3 and (self.player_pos == self.enemy_pos or self.player_pos == self.enemy2_pos):
+            reward -= 0.2  # Penalty for being caught by an enemy
             self.done = True
 
         if self.steps >= 100:
@@ -141,6 +150,19 @@ class TreasureHuntEnv:
         if ey < self.grid_size - 1:  # Can move right
             possible_moves.append((ex, ey + 1))
         self.enemy_pos = random.choice(possible_moves)
+
+        # Move second enemy
+        ex2, ey2 = self.enemy2_pos
+        possible_moves = []
+        if ex2 > 0:  # Can move up
+            possible_moves.append((ex2 - 1, ey2))
+        if ex2 < self.grid_size - 1:  # Can move down
+            possible_moves.append((ex2 + 1, ey2))
+        if ey2 > 0:  # Can move left
+            possible_moves.append((ex2, ey2 - 1))
+        if ey2 < self.grid_size - 1:  # Can move right
+            possible_moves.append((ex2, ey2 + 1))
+        self.enemy2_pos = random.choice(possible_moves)
 
     def close(self):
         if self.pygame_initialized:

@@ -110,7 +110,7 @@ if __name__ == "__main__":
     agent = QLearningAgent(env)
 
     print("Training Q-Learning Agent...")
-    rewards = agent.train(episodes=2_000 )
+    rewards = agent.train(episodes=4_000 )
 
     print("Playing with the trained agent...")
     agent.play(render_mode="pygame")  # Enable Pygame rendering for visualization

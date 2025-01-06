@@ -93,7 +93,6 @@ class QLearningAgent:
         self.env.render_mode = render_mode
         state = self.env.reset()
         done = False
-
         while not done:
             state_key = self._get_state_key(state)
             max_value = np.max(self.q_table.get(state_key, np.zeros(self.env.action_space)))
@@ -110,7 +109,7 @@ if __name__ == "__main__":
     agent = QLearningAgent(env)
 
     print("Training Q-Learning Agent...")
-    rewards = agent.train(episodes=4_000 )
+    rewards = agent.train(episodes=5_000 )
 
     print("Playing with the trained agent...")
     agent.play(render_mode="pygame")  # Enable Pygame rendering for visualization

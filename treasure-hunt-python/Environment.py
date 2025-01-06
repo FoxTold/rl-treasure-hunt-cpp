@@ -1,6 +1,36 @@
+from argparse import Action
+
 import numpy as np
 import pygame
 import random
+import itertools
+
+def hash_state(state):
+    return tuple(map(tuple, state))
+
+def primt(policy):
+    for p in policy:
+        print(p)
+    env = TreasureHuntEnv(render_mode="none")
+    state = env.reset()
+    done = False
+    action = None
+    steps = 0
+    moves = [3,1]
+    while not done:
+        hashed_state = hash_state(state)
+
+        try:
+            action = policy[hashed_state]
+        except KeyError:
+            action = moves[steps % 2]
+            policy[hashed_state] = moves[steps % 2]
+        state, reward, done, _ = env.step(action)
+        if hashed_state[4][5] == 1.0:
+            policy[hashed_state] = 1
+
+        steps += 1
+        env.render()
 
 class TreasureHuntEnv:
     def __init__(self, render_mode=None):
@@ -29,10 +59,10 @@ class TreasureHuntEnv:
 
     def reset(self):
         self.player_pos = (0, 0)
-        self.treasures = [(5, 2), (2, 3), (1, 2)]  # Fixed treasure positions
+        self.treasures = [(2, 2), (3, 3), (4, 4)]  # Fixed treasure positions
         self.meta_flag = (5, 5)  # Fixed meta flag position
-        self.enemy_pos = (0, 5)  # Fixed enemy 1 position
-        self.enemy2_pos = (5, 0)  # Fixed enemy 2 position
+        self.enemy_pos = (0, 5)  # Fixed enemy position
+        self.enemy_direction = 1  # 1 for down, -1 for up
         self.collected_treasures = 0
         self.steps = 0
         self.done = False
@@ -47,8 +77,6 @@ class TreasureHuntEnv:
         if self.collected_treasures < 3:  # Ensure all treasures are collected before removing enemies
             ex, ey = self.enemy_pos
             grid[ex, ey] = 3.0
-            ex2, ey2 = self.enemy2_pos
-            grid[ex2, ey2] = 3.0
         mx, my = self.meta_flag
         grid[mx, my] = 4.0
         return grid
@@ -90,9 +118,6 @@ class TreasureHuntEnv:
             ex, ey = self.enemy_pos
             self.screen.blit(self.enemy_image, (ey * self.cell_size, ex * self.cell_size + 50))
 
-            ex2, ey2 = self.enemy2_pos
-            self.screen.blit(self.enemy_image, (ey2 * self.cell_size, ex2 * self.cell_size + 50))
-
         px, py = self.player_pos
         self.screen.blit(self.player_image, (py * self.cell_size, px * self.cell_size + 50))
         pygame.display.flip()
@@ -114,7 +139,7 @@ class TreasureHuntEnv:
 
         self.player_pos = (x, y)
         self.steps += 1
-        reward = -0.05  # Start reward at 0
+        reward = 0.0  # Start reward at 0
 
         if self.player_pos in self.treasures:
             self.treasures.remove(self.player_pos)
@@ -126,10 +151,10 @@ class TreasureHuntEnv:
             self.done = True
 
         if self.collected_treasures < 3:  # Ensure enemies move only if treasures remain
-            self._move_enemies()
+            self._move_enemy()
 
-        if self.collected_treasures < 3 and (self.player_pos == self.enemy_pos or self.player_pos == self.enemy2_pos):
-            reward -= 0.2  # Penalty for being caught by an enemy
+        if self.collected_treasures < 3 and self.player_pos == self.enemy_pos:
+            reward -= 0.2  # Penalty for being caught by the enemy
             self.done = True
 
         if self.steps >= 100:
@@ -137,36 +162,143 @@ class TreasureHuntEnv:
 
         return self._get_state(), reward, self.done, {}
 
-    def _move_enemies(self):
-        # Move first enemy
+    def _move_enemy(self):
         ex, ey = self.enemy_pos
-        possible_moves = []
-        if ex > 0:  # Can move up
-            possible_moves.append((ex - 1, ey))
-        if ex < self.grid_size - 1:  # Can move down
-            possible_moves.append((ex + 1, ey))
-        if ey > 0:  # Can move left
-            possible_moves.append((ex, ey - 1))
-        if ey < self.grid_size - 1:  # Can move right
-            possible_moves.append((ex, ey + 1))
-        self.enemy_pos = random.choice(possible_moves)
+        if self.enemy_direction == 1 and ex < self.grid_size - 1:
+            ex += 1
+        elif self.enemy_direction == -1 and ex > 0:
+            ex -= 1
+        else:
+            self.enemy_direction *= -1
+            ex += self.enemy_direction
 
-        # Move second enemy
-        ex2, ey2 = self.enemy2_pos
-        possible_moves = []
-        if ex2 > 0:  # Can move up
-            possible_moves.append((ex2 - 1, ey2))
-        if ex2 < self.grid_size - 1:  # Can move down
-            possible_moves.append((ex2 + 1, ey2))
-        if ey2 > 0:  # Can move left
-            possible_moves.append((ex2, ey2 - 1))
-        if ey2 < self.grid_size - 1:  # Can move right
-            possible_moves.append((ex2, ey2 + 1))
-        self.enemy2_pos = random.choice(possible_moves)
+        self.enemy_pos = (ex, ey)
+
+    def get_possible_actions(self, state):
+        px, py = self.player_pos
+        possible_actions = []
+
+        if px > 0:  # Can move up
+            possible_actions.append(0)
+        if px < self.grid_size - 1:  # Can move down
+            possible_actions.append(1)
+        if py > 0:  # Can move left
+            possible_actions.append(2)
+        if py < self.grid_size - 1:  # Can move right
+            possible_actions.append(3)
+
+        return possible_actions
+
+    def get_next_states(self, state, action):
+        """
+        Get all possible next states from the given state by taking the specified action.
+        For a deterministic environment, this will always return one state with probability 1.0.
+        """
+        state_array = np.array(state)
+        player_positions = np.argwhere(state_array == 1.0)
+
+        if len(player_positions) == 0:
+
+            return None
+
+        px, py = player_positions[0]
+
+        if action == 0 and px > 0:  # Up
+            px -= 1
+        elif action == 1 and px < self.grid_size - 1:  # Down
+            px += 1
+        elif action == 2 and py > 0:  # Left
+            py -= 1
+        elif action == 3 and py < self.grid_size - 1:  # Right
+            py += 1
+
+        next_state = np.zeros((self.grid_size, self.grid_size), dtype=np.float32)
+        next_state[px, py] = 1.0
+        for tx, ty in self.treasures:
+            next_state[tx, ty] = 2.0
+        if self.collected_treasures < 3:
+            ex, ey = self.enemy_pos
+            next_state[ex, ey] = 3.0
+        mx, my = self.meta_flag
+        next_state[mx, my] = 4.0
+
+        return {tuple(map(tuple, next_state)): 1.0}  # Deterministic: Only one next state with prob = 1.0
+
+    def get_next_state(self, state, action):
+        px, py = self.player_pos
+
+        if action == 0 and px > 0:  # Up
+            px -= 1
+        elif action == 1 and px < self.grid_size - 1:  # Down
+            px += 1
+        elif action == 2 and py > 0:  # Left
+            py -= 1
+        elif action == 3 and py < self.grid_size - 1:  # Right
+            py += 1
+
+        next_state = np.zeros((self.grid_size, self.grid_size), dtype=np.float32)
+        next_state[px, py] = 1.0
+        for tx, ty in self.treasures:
+            next_state[tx, ty] = 2.0
+        if self.collected_treasures < 3:
+            ex, ey = self.enemy_pos
+            next_state[ex, ey] = 3.0
+        mx, my = self.meta_flag
+        next_state[mx, my] = 4.0
+        return tuple(map(tuple, next_state))
+
+    def get_all_states(self):
+        treasure_combinations = list(itertools.product([0, 1], repeat=len(self.treasures)))
+        all_states = []
+
+        enemy_column = self.enemy_pos[1]
+        enemy_positions = [(row, enemy_column) for row in range(self.grid_size)]
+
+        for player_pos in itertools.product(range(self.grid_size), repeat=2):
+            for enemy_pos in enemy_positions:
+                for treasure_state in treasure_combinations:
+                    self.player_pos = player_pos
+                    self.enemy_pos = enemy_pos
+                    self.collected_treasures = sum(treasure_state)
+                    self.treasures = [self.treasures[i] for i in range(len(self.treasures)) if treasure_state[i] == 0]
+                    state = self._get_state()
+                    all_states.append(tuple(map(tuple, state)))
+
+        return all_states
 
     def close(self):
         if self.pygame_initialized:
             pygame.quit()
+
+    def get_reward(self, state, action, next_state):
+        next_state_array = np.array(next_state)
+
+        # Check if the player position exists in the next state
+        player_positions = np.argwhere(next_state_array == 1.0)
+        if len(player_positions) == 0:
+            return 0.0
+            raise ValueError(f"Invalid next_state: Player position not found. State:\n{next_state_array}")
+
+        px, py = player_positions[0]
+
+        # Check if player reached a treasure
+        if (px, py) in self.treasures:
+            return 0.1
+
+        # Check if player reached the meta flag
+        if (px, py) == self.meta_flag and self.collected_treasures == len(self.treasures):
+            return 0.5
+
+        # Check if player is caught by the enemy
+        enemy_positions = np.argwhere(next_state_array == 3.0)
+        if len(enemy_positions) > 0:
+            ex, ey = enemy_positions[0]
+            if (px, py) == (ex, ey):
+                return -0.2
+
+        # Default reward
+        return 0.0
+
 
 # Example usage
 if __name__ == "__main__":
@@ -175,8 +307,9 @@ if __name__ == "__main__":
     done = False
 
     while not done:
-        action = np.random.randint(0, 4)
+        action = np.random.choice(env.get_possible_actions(state))
         state, reward, done, _ = env.step(action)
+
         env.render()
 
     env.close()

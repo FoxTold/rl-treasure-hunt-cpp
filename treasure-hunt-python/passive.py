@@ -1,158 +1,255 @@
-import numpy as np
+import random
 
-class PassiveLearningAgent:
-    def __init__(self, env, gamma=0.99, theta=1e-4):
-        """
-        Initialize the Passive Learning Agent.
 
-        Args:
-            env: The environment the agent interacts with.
-            gamma (float): Discount factor for future rewards.
-            theta (float): Convergence threshold for value iteration and policy iteration.
-        """
-        self.env = env
-        self.gamma = gamma
-        self.theta = theta
-        self.value_function = np.zeros((env.grid_size, env.grid_size))  # State values
-        self.policy = np.zeros((env.grid_size, env.grid_size), dtype=int)  # Policy
+def deterministic_policy_eval_in_place(mdp, policy, gamma, theta):
+    """
+    This function uses the in-place approach to evaluate the specified deterministic policy for the specified MDP:
 
-    def policy_evaluation(self):
-        """
-        Perform policy evaluation to update the value function.
-        """
-        while True:
-            delta = 0
-            for x in range(self.env.grid_size):
-                for y in range(self.env.grid_size):
-                    old_value = self.value_function[x, y]
+        'mdp' - model of the environment, use following functions:
+        get_all_states - return list of all states available in the environment
+        get_possible_actions - return list of possible actions for the given state
+        get_next_states - return list of possible next states with a probability for transition from state by taking
+                          action into next_state
+        get_reward - return the reward after taking action in state and landing on next_state
 
-                    action = self.policy[x, y]
-                    self.env.player_pos = (x, y)
-                    self.env.done = False  # Reset the environment's 'done' flag
-                    next_state, reward, done, _ = self.env.step(action)
-                    nx, ny = self.env.player_pos
 
-                    self.value_function[x, y] = reward + self.gamma * (0 if done else self.value_function[nx, ny])
-                    delta = max(delta, abs(old_value - self.value_function[x, y]))
+        'policy' - the deterministic policy (action probability for each state), for the given mdp, too evaluate
+        'gamma' - discount factor for MDP
+        'theta' - algorithm should stop when minimal difference between previous evaluation of policy and current is
+                  smaller than theta
+    """
+    def hash_state(state):
+        return tuple(map(tuple, state))
 
-            if delta < self.theta:
-                break
+    V = dict()
 
-    def policy_improvement(self):
-        """
-        Perform policy improvement to update the policy based on the value function.
-        """
-        policy_stable = True
-        for x in range(self.env.grid_size):
-            for y in range(self.env.grid_size):
-                old_action = self.policy[x, y]
-                best_action = old_action
-                best_value = float('-inf')
+    for s in mdp.get_all_states():
+        hashed_state = hash_state(s)
+        V[hashed_state] = 0
 
-                for action in range(self.env.action_space):
-                    self.env.player_pos = (x, y)
-                    self.env.done = False  # Reset the environment's 'done' flag
-                    next_state, reward, done, _ = self.env.step(action)
-                    nx, ny = self.env.player_pos
+    states = mdp.get_all_states()
 
-                    value = reward + self.gamma * (0 if done else self.value_function[nx, ny])
-                    if value > best_value:
-                        best_value = value
-                        best_action = action
+    for s in states:
+        has_player = False
+        for x in range(len(s)):
+            for y in range(x):
+                if s[x][y] == 1:
+                    has_player = True
+        if not has_player:
+            states.remove(s)
 
-                self.policy[x, y] = best_action
-                if old_action != best_action:
-                    policy_stable = False
+    while True:
+        delta = 0
+        for state in states:
+            hashed_state = hash_state(state)
+            old_value = V[hashed_state]
 
-        return policy_stable
+            action = policy[hashed_state]
 
-    def policy_iteration(self):
-        """
-        Perform policy iteration to find the optimal policy.
-        """
-        while True:
-            self.policy_evaluation()
-            if self.policy_improvement():
-                break
+            next_states = mdp.get_next_states(state, action)
+            new_value = 0.0
+            if not next_states:
+                continue
+            for next_state, prob in next_states.items():
+                reward = mdp.get_reward(state, action, next_state)
+                hashed_next_state = hash_state(next_state)
+                new_value += prob * (reward + gamma * V[hashed_next_state])
 
-    def value_iteration(self):
-        """
-        Perform value iteration to directly find the optimal value function and policy.
-        """
-        while True:
-            delta = 0
-            for x in range(self.env.grid_size):
-                for y in range(self.env.grid_size):
-                    old_value = self.value_function[x, y]
-                    best_value = float('-inf')
+            V[hashed_state] = new_value
+            delta = max(delta, abs(old_value - V[hashed_state]))
 
-                    for action in range(self.env.action_space):
-                        self.env.player_pos = (x, y)
-                        self.env.done = False  # Reset the environment's 'done' flag
-                        next_state, reward, done, _ = self.env.step(action)
-                        nx, ny = self.env.player_pos
+        if delta < theta:
+            break
 
-                        value = reward + self.gamma * (0 if done else self.value_function[nx, ny])
-                        if value > best_value:
-                            best_value = value
-                            self.policy[x, y] = action
+    return V
 
-                    self.value_function[x, y] = best_value
-                    delta = max(delta, abs(old_value - self.value_function[x, y]))
 
-            if delta < self.theta:
-                break
+def policy_improvement(mdp, policy, value_function, gamma):
+    """
+     This function improves specified deterministic policy for the specified MDP using value_function:
 
-    def display_policy(self):
-        """
-        Display the policy as a grid.
-        """
-        print("Policy:")
-        policy_symbols = ['^', 'v', '<', '>']  # Up, Down, Left, Right
-        for x in range(self.env.grid_size):
-            print(" ".join(policy_symbols[self.policy[x, y]] for y in range(self.env.grid_size)))
+    'mdp' - model of the environment, use following functions:
+         get_all_states - return list of all states available in the environment
+         get_possible_actions - return list of possible actions for the given state
+         get_next_states - return list of possible next states with a probability for transition from state by taking
+                           action into next_state
 
-    def display_values(self):
-        """
-        Display the value function as a grid.
-        """
-        print("Value Function:")
-        print(self.value_function)
+         get_reward - return the reward after taking action in state and landing on next_state
 
-    def simulate_policy(self):
-        """
-        Simulate the agent's learned policy in the environment and display its behavior.
-        """
-        state = self.env.reset()
-        self.env.render_mode = "pygame"  # Use text rendering for simplicity
-        done = False
-        total_reward = 0
 
-        print("Simulating policy:")
-        while not done:
-            x, y = self.env.player_pos
-            action = self.policy[x, y]
-            state, reward, done, _ = self.env.step(action)
-            total_reward += reward
-            self.env.render()
+    'policy' - the deterministic policy (action for each state), for the given mdp, too improve.
+    'value_function' - the value function, for the given policy.
+     'gamma' - discount factor for MDP
 
-        print(f"Total Reward: {total_reward}")
+    Function returns False if policy was improved or True otherwise
+    """
 
-# Example usage
+    policy_stable = True
+    #
+    # INSERT CODE HERE to evaluate the improved policy
+    #
+    for s in mdp.get_all_states():
+        action = mdp.get_possible_actions(s)
+        a_result = {}
+        for a in action:
+            temp = 0
+            next_states = mdp.get_next_states(s, a)
+            if not next_states:
+                continue
+            for s_next in next_states:
+                temp += next_states[s_next] * (
+                    mdp.get_reward(s, a, s_next) + gamma * value_function[s_next]
+                )
+
+            a_result[a] = temp
+        try:
+            max_value = max(a_result, key=a_result.get)
+        except ValueError:
+            continue
+
+        if max_value != policy[s]:
+            policy[s] = max_value
+            policy_stable = False
+
+    return policy_stable
+
+def policy_iteration(mdp, gamma, theta):
+    """
+     This function calculate optimal policy for the specified MDP:
+
+    'mdp' - model of the environment, use following functions:
+         get_all_states - return list of all states available in the environment
+         get_possible_actions - return list of possible actions for the given state
+         get_next_states - return list of possible next states with a probability for transition from state by taking
+                           action into next_state
+
+         get_reward - return the reward after taking action in state and landing on next_state
+
+
+    'gamma' - discount factor for MDP
+    'theta' - algorithm should stop when minimal difference between previous evaluation of policy and current is smaller
+               than theta
+    Function returns optimal policy and value function for the policy
+    """
+
+    policy = dict()
+    states = mdp.get_all_states()
+    for s in states:
+        actions = mdp.get_possible_actions(s)
+        policy[s] = actions[0]
+
+    V = deterministic_policy_eval_in_place(mdp, policy, gamma, theta)
+
+    policy_stable = False
+
+    while not policy_stable:
+        policy_stable = policy_improvement(mdp, policy, V, gamma)
+        V = deterministic_policy_eval_in_place(mdp, policy, gamma, theta)
+
+    return policy, V
+
+def hash_state(state):
+    return tuple(map(tuple, state))
+
+def value_iteration(mdp, gamma, theta):
+    """
+    This function calculate optimal policy for the specified MDP using Value Iteration approach:
+
+    'mdp' - model of the environment, use following functions:
+        get_all_states - return list of all states available in the environment
+        get_possible_actions - return list of possible actions for the given state
+        get_next_states - return list of possible next states with a probability for transition from state by taking
+                          action into next_state
+        get_reward - return the reward after taking action in state and landing on next_state
+
+
+    'gamma' - discount factor for MDP
+    'theta' - algorithm should stop when minimal difference between previous evaluation of policy and current is
+              smaller than theta
+    Function returns optimal policy and value function for the policy
+    """
+
+    V = dict()
+    policy = dict()
+
+    for current_state in mdp.get_all_states():
+        V[current_state] = 0
+        for action in mdp.get_possible_actions(current_state):
+            policy[current_state] = action
+
+    while True:
+        delta = 0
+        for state in mdp.get_all_states():
+            if not mdp.get_possible_actions(state):
+                continue
+
+            action_values = {}
+            for action in mdp.get_possible_actions(state):
+                action_value = 0.0
+                transitions = mdp.get_next_states(state, action)
+                if not transitions:
+                    continue
+                for next_state, prob in transitions.items():
+                    reward = mdp.get_reward(state, action, next_state)
+                    action_value += prob * (reward + gamma * V[next_state])
+                action_values[action] = action_value
+
+            if not len(action_values):
+                continue
+            max_action_value = max(action_values.values())
+
+            delta = max(delta, abs(max_action_value - V[state]))
+
+            V[state] = max_action_value
+
+        if delta < theta:
+            break
+
+    for state in mdp.get_all_states():
+        if not mdp.get_possible_actions(state):
+            policy[state] = None
+            continue
+        action_values = {}
+
+        for action in mdp.get_possible_actions(state):
+            action_value = 3
+            transitions = mdp.get_next_states(state, action)
+            if not transitions:
+                continue
+            for next_state, prob in transitions.items():
+                reward = mdp.get_reward(state, action, next_state)
+                action_value += prob * (reward + gamma * V[next_state])
+            action_values[action] = action_value
+
+        if not len(action_values):
+            action_values[3]=3
+        best_action = max(action_values, key=action_values.get)
+        policy[state] = 3
+
+    primt(policy)
+    return policy, V
+
+
+from Environment import *
 if __name__ == "__main__":
-    from Environment import *
     env = TreasureHuntEnv(render_mode="none")
-    agent = PassiveLearningAgent(env)
 
-    print("Running Value Iteration...")
-    agent.value_iteration()
-    agent.display_policy()
-    agent.display_values()
+    import time
+    start = time.time()
+    optimal_policy, optimal_value = value_iteration(env, 0.9, 0.001)
+    print("Took %.2f seconds." % (time.time() - start))
+    env.render_mode = "pygame"
+    state = env.reset()
+    done = False
+    steps = 0
 
-    print("Simulating learned policy...")
-    agent.simulate_policy()
+    while not done:
 
-    print("Running Policy Iteration...")
-    agent.policy_iteration()
-    agent.display_policy()
-    agent.display_values()
+        hashed_state = hash_state(state)
+        action = optimal_policy[hashed_state]  # Access optimal action for the current state
+        state, reward, done, _ = env.step(action)
+        print(state)
+        steps += 1
+        env.render()
+
+
